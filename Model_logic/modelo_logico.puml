@@ -1,0 +1,152 @@
+@startuml modelo_logico
+' Diagrama ER del modelo lógico (sistema de ventas)
+' Generado/actualizado a partir de las imágenes proporcionadas
+
+entity "Tiendas" as Tiendas {
+  *id_tienda : int <<PK>>
+  --
+  nombre : varchar
+  direccion : varchar
+  telefono : varchar
+  ciudad : varchar
+}
+
+note right of Tiendas
+  created_at, updated_at
+end note
+
+entity "Puesto_Empleados" as Puesto {
+  *id_puesto : int <<PK>>
+  --
+  nombre_puesto : varchar
+}
+
+note right of Puesto
+  created_at, updated_at
+end note
+
+entity "Empleados" as Empleado {
+  *id_empleado : int <<PK>>
+  --
+  nombre : varchar
+  apellido_paterno : varchar
+  apellido_materno : varchar
+  rfc : varchar
+  fecha_contratacion : date
+  id_tienda : int <<FK>>
+  id_puesto : int <<FK>>
+}
+
+note right of Empleado
+  created_at, updated_at
+end note
+
+entity "Proveedores" as Proveedor {
+  *id_proveedor : int <<PK>>
+  --
+  nombre_empresa : varchar
+  contacto_nombre : varchar
+  contacto_email : varchar
+  contacto_telefono : varchar
+}
+
+note right of Proveedor
+  created_at, updated_at
+end note
+
+entity "Categoria_Productos" as Categoria {
+  *id_categoria : int <<PK>>
+  --
+  nombre_categoria : varchar
+  descripcion : text
+}
+
+note right of Categoria
+  created_at, updated_at
+end note
+
+entity "Productos" as Producto {
+  *id_producto : int <<PK>>
+  --
+  sku : varchar
+  nombre_producto : varchar
+  descripcion : text
+  precio_venta : numeric
+  costo_compra : numeric
+  id_categoria : int <<FK>>
+  id_proveedor : int <<FK>>
+}
+
+note right of Producto
+  sku UNIQUE
+  created_at, updated_at
+end note
+
+entity "Inventario" as Inventario {
+  *id_tienda + id_producto : composite <<PK>>
+  --
+  cantidad : int
+  fecha_ultima_actualizacion : timestamp
+}
+
+note right of Inventario
+  updated_at
+end note
+
+entity "Clientes" as Cliente {
+  *id_cliente : int <<PK>>
+  --
+  nombre : varchar
+  rfc : varchar
+  email : varchar
+  telefono : varchar
+}
+
+note right of Cliente
+  ux_clientes_rfc (unique when not null)
+  created_at, updated_at
+end note
+
+entity "Venta" as Venta {
+  *id_venta : int <<PK>>
+  --
+  fecha_hora : timestamp
+  monto_total : numeric
+  id_cliente : int <<FK>>
+  id_empleado : int <<FK>>
+  id_tienda : int <<FK>>
+}
+
+note right of Venta
+  created_at, updated_at
+  monto_total maintained by trigger
+end note
+
+entity "Detalles_Venta" as Detalle {
+  *id_detalle_venta : int <<PK>>
+  --
+  id_venta : int <<FK>>
+  id_producto : int <<FK>>
+  cantidad : int
+  precio_unitario : numeric
+  subtotal : numeric
+}
+
+note right of Detalle
+  subtotal = cantidad * precio_unitario
+  updated_at
+end note
+
+' Relaciones
+Tiendas ||--o{ Empleado : "tiene"
+Puesto ||--o{ Empleado : "define puesto"
+Categoria ||--o{ Producto : "categoriza"
+Proveedor ||--o{ Producto : "suministra"
+Cliente ||--o{ Venta : "realiza"
+Empleado ||--o{ Venta : "procesa"
+Venta ||--o{ Detalle : "contiene"
+Producto ||--o{ Detalle : "aparece en"
+Tiendas ||--o{ Inventario : "almacena"
+Producto ||--o{ Inventario : "está en"
+
+@enduml
