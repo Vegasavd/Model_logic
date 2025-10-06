@@ -156,6 +156,27 @@ Este documento muestra las tablas del modelo lógico en formato de tablas Markdo
 
 ---
 
+## facturacion
+
+| Atributo | Tipo de dato | Llave | Restricciones / Notas |
+|---|---:|---|---|
+| id_factura | SERIAL | PK | Identificador de la factura
+| id_venta | INTEGER | FK | REFERENCES `venta(id_venta)` ON DELETE CASCADE
+| serie | VARCHAR(20) |  | Opcional
+| folio | VARCHAR(50) |  | Opcional
+| fecha_emision | TIMESTAMP |  | DEFAULT now()
+| total | NUMERIC(14,2) |  | NOT NULL
+| metodo_pago | VARCHAR(50) |  | Ej: 'transferencia', 'efectivo'
+| estado | VARCHAR(30) |  | DEFAULT 'emitida'
+| xml_path | TEXT |  | Ruta o referencia al XML de la factura
+| pdf_path | TEXT |  | Ruta o referencia al PDF generado
+| created_at | TIMESTAMP |  | DEFAULT now()
+| updated_at | TIMESTAMP |  | DEFAULT now(), actualiza con trigger
+
+Índices: `idx_facturacion_venta (id_venta)`
+
+---
+
 ## Triggers y funciones notables
 
 - `trg_set_updated_at()` — función genérica que setea `NEW.updated_at = now()` en `BEFORE UPDATE`.
@@ -176,4 +197,3 @@ Este documento muestra las tablas del modelo lógico en formato de tablas Markdo
 Archivo original del diagrama: `modelo_logico.puml`
 Archivo DDL: `modelo_logico.sql`
 
-Si quieres, genero ahora una imagen PNG del diagrama y un pequeño script SQL de prueba que inserte datos y muestre que el trigger actualiza `venta.monto_total`.

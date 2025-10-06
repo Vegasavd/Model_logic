@@ -149,4 +149,22 @@ Producto ||--o{ Detalle : "aparece en"
 Tiendas ||--o{ Inventario : "almacena"
 Producto ||--o{ Inventario : "está en"
 
+entity "Facturacion" as Facturacion {
+  *id_factura : int <<PK>>
+  --
+  id_venta : int <<FK>>
+  serie : varchar
+  folio : varchar
+  fecha_emision : timestamp
+  total : numeric
+  metodo_pago : varchar
+  estado : varchar
+  xml_path : text
+  pdf_path : text
+  created_at : timestamp
+  updated_at : timestamp
+}
+
+Venta ||--o{ Facturacion : "tiene"
+
 @enduml

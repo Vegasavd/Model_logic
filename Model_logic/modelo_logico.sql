@@ -152,6 +152,24 @@ CREATE INDEX idx_detalles_venta_venta ON detalles_venta(id_venta);
 ALTER TABLE detalles_venta
     ADD COLUMN created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now();
 
+-- Tabla: facturacion (datos de facturas electrónicas / documentos fiscales)
+CREATE TABLE facturacion (
+    id_factura SERIAL PRIMARY KEY,
+    id_venta INTEGER NOT NULL REFERENCES venta(id_venta) ON DELETE CASCADE,
+    serie VARCHAR(20),
+    folio VARCHAR(50),
+    fecha_emision TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
+    total NUMERIC(14,2) NOT NULL,
+    metodo_pago VARCHAR(50),
+    estado VARCHAR(30) DEFAULT 'emitida',
+    xml_path TEXT, -- ruta o blob externo
+    pdf_path TEXT,
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now()
+);
+
+CREATE INDEX idx_facturacion_venta ON facturacion(id_venta);
+
 -- Trigger genérico para mantener `updated_at`
 CREATE OR REPLACE FUNCTION trg_set_updated_at()
 RETURNS TRIGGER AS $$
