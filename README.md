@@ -33,14 +33,14 @@ Cómo ejecutar los tests (Windows, cmd.exe)
 2. Desde la raíz del proyecto ejecuta el wrapper (llama al script dentro de `tests`):
 
 ```cmd
-cd "c:\Users\vegas\OneDrive\Desktop\Model_logic" en su defecto la ruta de donde se guardo el repositorio.
+cd "c:\Users\vegas\OneDrive\Desktop\Model_logic"
 run_tests.cmd
 ```
 
 O bien, puedes ejecutar directamente el script dentro de `tests`:
 
 ```cmd
-cd "c:\Users\vegas\OneDrive\Desktop\Model_logic\tests"  en su defecto la ruta de donde se guardo el repositorio.
+cd "c:\Users\vegas\OneDrive\Desktop\Model_logic\tests"
 run_tests.cmd
 ```
 
