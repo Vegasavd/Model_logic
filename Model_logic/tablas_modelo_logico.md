@@ -106,6 +106,41 @@ Este documento muestra las tablas del modelo lógico en formato de tablas Markdo
 
 Índices: PK compuesta `(id_tienda, id_producto)`, `idx_inventario_producto (id_producto)`
 
+### Nota: `fecha_ultima_actualizacion` vs `updated_at`
+
+- `fecha_ultima_actualizacion` es una columna específica del dominio (inventario) que indica el momento en que cambió el stock (por ejemplo, la columna `cantidad`). Se usa cuando te interesa registrar la última vez que se actualizó el inventario en sí (entrada/salida de mercancía).
+- `updated_at` es una columna de auditoría genérica presente en muchas tablas y mantenida por el trigger genérico `trg_set_updated_at()` (se actualiza en cualquier UPDATE de la fila). Sirve para saber cuándo cualquier campo de la fila fue modificado por última vez, no sólo el stock.
+
+Ambas columnas pueden coexistir y tener usos distintos: `fecha_ultima_actualizacion` para eventos de inventario, y `updated_at` para auditoría general.
+
+### Ejemplo: trigger que actualiza `fecha_ultima_actualizacion` solo cuando cambia `cantidad`
+
+El siguiente ejemplo demuestra una función y trigger que ponen `fecha_ultima_actualizacion = now()` sólo si la cantidad del inventario realmente cambió (evita actualizar la fecha cuando otras columnas se modifican):
+
+```sql
+CREATE OR REPLACE FUNCTION trg_inventario_set_fecha()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Actualizar fecha_ultima_actualizacion solo si cambia la cantidad
+  IF TG_OP = 'UPDATE' THEN
+    IF NEW.cantidad IS DISTINCT FROM OLD.cantidad THEN
+      NEW.fecha_ultima_actualizacion := now();
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_inventario_set_fecha
+  BEFORE UPDATE ON inventario
+  FOR EACH ROW
+  EXECUTE FUNCTION trg_inventario_set_fecha();
+```
+
+Notas:
+- La columna `fecha_ultima_actualizacion` ya tiene `DEFAULT now()` para INSERTs; este trigger garantiza que en UPDATEs solo se cambie cuando varíe `cantidad`.
+- El trigger genérico `trg_set_updated_at()` (que actualiza `updated_at`) puede coexistir con este trigger: ambos se ejecutarán para los UPDATEs y cada uno cumplirá su propósito.
+
 ---
 
 ## clientes
