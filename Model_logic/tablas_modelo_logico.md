@@ -212,6 +212,74 @@ Notas:
 
 ---
 
+## compra
+
+| Atributo | Tipo de dato | Llave | Restricciones / Notas |
+|---|---:|---|---|
+| id_compra | SERIAL | PK | Identificador de la compra
+| fecha_compra | TIMESTAMP |  | DEFAULT now()
+| id_proveedor | INTEGER | FK | REFERENCES `proveedores(id_proveedor)` ON DELETE SET NULL
+| id_tienda | INTEGER | FK | REFERENCES `tiendas(id_tienda)` ON DELETE SET NULL — tienda que recibe
+| total_compra | NUMERIC(14,2) |  | DEFAULT 0, recalculado por trigger desde `compra_producto`
+| estado | VARCHAR(30) |  | Valores: 'pendiente','recibida','cancelada'
+| recibida | BOOLEAN |  | DEFAULT FALSE — al pasar a TRUE se aplican las líneas al inventario
+| aplicada | BOOLEAN |  | DEFAULT FALSE — indica si la compra ya fue aplicada al inventario (previene dobles aplicaciones)
+| fecha_recepcion | TIMESTAMP |  | Fecha en que se confirmó la recepción (rellenada por trigger si falta)
+| created_at | TIMESTAMP |  | DEFAULT now()
+| updated_at | TIMESTAMP |  | DEFAULT now(), actualiza con trigger
+
+Índices: `idx_compra_proveedor (id_proveedor)`, `idx_compra_tienda (id_tienda)`
+
+Notas:
+- El total (`total_compra`) se mantiene por triggers que suman los `subtotal` de `compra_producto`.
+- La columna `recibida` controla la aplicación al inventario: la transición `FALSE -> TRUE` dispara la inserción/actualización de `inventario` con las cantidades compradas.
+- La columna `aplicada` evita que la misma compra se aplique dos veces al inventario; se marca automáticamente cuando la compra se procesa.
+- Si necesitas trazabilidad detallada (lotes, fechas de caducidad), considera una tabla `movimiento_inventario` para registrar cada entrada/salida.
+
+Ejemplo de flujo (SQL) — insertar compra, líneas y marcar recibida:
+
+```sql
+-- Crear encabezado de compra
+INSERT INTO compra (id_proveedor, id_tienda) VALUES (1, 1);
+
+-- Agregar líneas (usar el id de compra recien creado)
+INSERT INTO compra_producto (id_compra, id_producto, cantidad, precio_unitario)
+VALUES ((SELECT id_compra FROM compra ORDER BY id_compra DESC LIMIT 1), 1, 10, 100.00);
+
+-- Ver total calculado por trigger
+SELECT id_compra, total_compra FROM compra ORDER BY id_compra DESC LIMIT 1;
+
+-- Inventario antes de recepción
+SELECT * FROM inventario WHERE id_tienda = 1 AND id_producto = 1;
+
+-- Confirmar recepción (esto aplicará las líneas al inventario)
+UPDATE compra SET recibida = TRUE WHERE id_compra = (SELECT id_compra FROM compra ORDER BY id_compra DESC LIMIT 1);
+
+-- Inventario después: cantidad incrementada
+SELECT * FROM inventario WHERE id_tienda = 1 AND id_producto = 1;
+```
+
+## compra_producto
+
+| Atributo | Tipo de dato | Llave | Restricciones / Notas |
+|---|---:|---|---|
+| id_compra_producto | SERIAL | PK | Identificador de la línea (nombre en SQL: id_compra_producto)
+| id_compra | INTEGER | FK | REFERENCES `compra(id_compra)` ON DELETE CASCADE
+| id_producto | INTEGER | FK | REFERENCES `productos(id_producto)` ON DELETE RESTRICT
+| id_tienda | INTEGER |  | opcional en el diagrama: indica tienda destino para el stock (usualmente se toma de `compra.id_tienda`)
+| cantidad | INTEGER |  | CHECK (cantidad > 0)
+| precio_unitario | NUMERIC(12,2) |  | CHECK (>= 0)
+| subtotal | NUMERIC(14,2) |  | GENERATED ALWAYS AS (cantidad * precio_unitario) STORED
+| created_at | TIMESTAMP |  | DEFAULT now()
+| updated_at | TIMESTAMP |  | DEFAULT now(), actualiza con trigger
+
+Índices: `idx_compra_producto_compra (id_compra)`, `idx_compra_producto_producto (id_producto)`
+
+Notas:
+- Cuando se inserta o actualiza una línea y la compra ya está marcada `recibida = TRUE` y `aplicada = FALSE`, la línea se aplica inmediatamente al inventario.
+- Existe un trigger que aplica todas las líneas al inventario cuando `compra.recibida` cambia de FALSE a TRUE; la operación hace `INSERT ... ON CONFLICT (id_tienda, id_producto) DO UPDATE SET cantidad = inventario.cantidad + EXCLUDED.cantidad`.
+- Para evitar doble aplicación en procesos reintentos, la columna `aplicada` en `compra` se usa como semáforo. Si necesitas una trazabilidad más robusta, añade `movimiento_inventario`.
+
 ## Triggers y funciones notables
 
 - `trg_set_updated_at()` — función genérica que setea `NEW.updated_at = now()` en `BEFORE UPDATE`.

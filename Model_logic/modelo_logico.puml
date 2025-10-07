@@ -146,8 +146,49 @@ Cliente ||--o{ Venta : "realiza"
 Empleado ||--o{ Venta : "procesa"
 Venta ||--o{ Detalle : "contiene"
 Producto ||--o{ Detalle : "aparece en"
-Tiendas ||--o{ Inventario : "almacena"
-Producto ||--o{ Inventario : "está en"
+Producto ||--o{ CompraProducto : "detalle de"
+
+ ' --- Compras y Facturación ---
+entity "Compra" as Compra {
+  *id_compra : int <<PK>>
+  --
+  folio_compra : varchar
+  fecha : timestamp
+  forma_pago : varchar
+  subtotal_compra : numeric
+  iva : numeric
+  total_compra : numeric
+  id_proveedor : int <<FK>>
+  id_tienda : int <<FK>>
+  recibida : boolean
+  aplicada : boolean
+  created_at : timestamp
+  updated_at : timestamp
+}
+
+entity "CompraProducto" as CompraItem {
+  *id_item : int <<PK>>
+  --
+  id_compra : int <<FK>>
+  id_producto : int <<FK>>
+  id_tienda : int
+  cantidad : int
+  costo_unitario : numeric
+  subtotal : numeric
+  created_at : timestamp
+  updated_at : timestamp
+}
+
+note right of Compra
+  Registra compras a proveedores. Al confirmar la recepción,
+  las líneas de `CompraProducto` incrementan el `inventario`.
+end note
+
+Proveedor ||--o{ Compra : "provee"
+Tiendas ||--o{ Compra : "recibe"
+Compra ||--o{ CompraItem : "incluye"
+Producto ||--o{ CompraItem : "detalle de"
+CompraItem }o--|| Inventario : "actualiza"
 
 entity "Facturacion" as Facturacion {
   *id_factura : int <<PK>>
