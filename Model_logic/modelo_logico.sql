@@ -144,13 +144,40 @@ CREATE TABLE detalles_venta (
     id_producto INTEGER NOT NULL REFERENCES productos(id_producto) ON DELETE RESTRICT,
     cantidad INTEGER NOT NULL CHECK (cantidad > 0),
     precio_unitario NUMERIC(12,2) NOT NULL CHECK (precio_unitario >= 0),
-    subtotal NUMERIC(14,2) GENERATED ALWAYS AS (cantidad * precio_unitario) STORED
+    subtotal NUMERIC(14,2) GENERATED ALWAYS AS (cantidad * precio_unitario) STORED,
+    orden INTEGER -- número de línea dentro de la venta; si es NULL se asigna mediante trigger
 );
 
 CREATE INDEX idx_detalles_venta_venta ON detalles_venta(id_venta);
 
+-- Índice compuesto y unique por orden dentro de la venta para consultas y garantías
+CREATE INDEX IF NOT EXISTS idx_detalles_venta_venta_orden ON detalles_venta(id_venta, orden);
+ALTER TABLE detalles_venta
+    ADD CONSTRAINT IF NOT EXISTS ux_detalles_venta_orden UNIQUE (id_venta, orden);
+
 ALTER TABLE detalles_venta
     ADD COLUMN created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now();
+
+-- Función para asignar un orden de línea atómico por id_venta usando advisory locks
+CREATE OR REPLACE FUNCTION trg_assign_detalle_venta_orden()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_next INTEGER;
+BEGIN
+    IF NEW.orden IS NULL THEN
+        -- lock por venta para evitar race conditions entre inserciones concurrentes
+        PERFORM pg_advisory_xact_lock(hashtext('detalles_venta_' || NEW.id_venta)::bigint);
+
+        SELECT COALESCE(MAX(orden), 0) + 1 INTO v_next FROM detalles_venta WHERE id_venta = NEW.id_venta;
+        NEW.orden := v_next;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_detalles_venta_before_ins_set_orden
+    BEFORE INSERT ON detalles_venta
+    FOR EACH ROW EXECUTE FUNCTION trg_assign_detalle_venta_orden();
 
 -- Tabla: facturacion (datos de facturas electrónicas / documentos fiscales)
 CREATE TABLE facturacion (
@@ -303,12 +330,37 @@ CREATE TABLE compra_producto (
     cantidad INTEGER NOT NULL CHECK (cantidad > 0),
     precio_unitario NUMERIC(12,2) NOT NULL CHECK (precio_unitario >= 0),
     subtotal NUMERIC(14,2) GENERATED ALWAYS AS (cantidad * precio_unitario) STORED,
+    orden INTEGER, -- número de línea dentro de la compra; si es NULL se asigna mediante trigger
     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),
     updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now()
 );
 
 CREATE INDEX idx_compra_producto_compra ON compra_producto(id_compra);
 CREATE INDEX idx_compra_producto_producto ON compra_producto(id_producto);
+
+-- Índice y unique por orden dentro de la compra
+CREATE INDEX IF NOT EXISTS idx_compra_producto_compra_orden ON compra_producto(id_compra, orden);
+ALTER TABLE compra_producto
+    ADD CONSTRAINT IF NOT EXISTS ux_compra_producto_orden UNIQUE (id_compra, orden);
+
+-- Trigger y función para asignar orden de línea atómico por compra
+CREATE OR REPLACE FUNCTION trg_assign_compra_producto_orden()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_next INTEGER;
+BEGIN
+    IF NEW.orden IS NULL THEN
+        PERFORM pg_advisory_xact_lock(hashtext('compra_producto_' || NEW.id_compra)::bigint);
+        SELECT COALESCE(MAX(orden), 0) + 1 INTO v_next FROM compra_producto WHERE id_compra = NEW.id_compra;
+        NEW.orden := v_next;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_compra_producto_before_ins_set_orden
+    BEFORE INSERT ON compra_producto
+    FOR EACH ROW EXECUTE FUNCTION trg_assign_compra_producto_orden();
 
 -- Trigger para recalcular compra.total_compra cuando cambien líneas
 CREATE OR REPLACE FUNCTION trg_recalc_compra_total()
