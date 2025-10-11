@@ -1,75 +1,121 @@
-# Modelo lógico (sistema de ventas) — Model_logic
+# Model_logic — Sistema de Ventas (PostgreSQL)
 
-Este repositorio contiene el modelo lógico extraído de las imágenes proporcionadas (tiendas, puestos, empleados, proveedores, categorías, productos, inventario, clientes, venta y detalles_venta), ahora extendido para soportar compras a proveedores y facturación.
+Proyecto de modelo lógico para un sistema de ventas y compras en PostgreSQL. Incluye DDL completo (tablas, claves, triggers), diagrama ER en PlantUML, generador de CSVs realistas, y un script de pruebas automatizadas para verificar comportamientos clave (cálculo de montos, facturación, compras → inventario, e idempotencia).
 
-Archivos principales
-- `modelo_logico.sql` — DDL en PostgreSQL con las tablas, índices, funciones y triggers (ubicado en la raíz del proyecto).
-- `modelo_logico.puml` — Diagrama ER en PlantUML. Ábrelo con la extensión PlantUML en VS Code o genera imágenes con PlantUML.
-- `tablas_modelo_logico.md` — Documentación en Markdown con cada tabla, campos, índices y notas (incluye ejemplo SQL de flujo de compra).
-- `tests/test_data.sql` — Script de pruebas que inserta datos y ejecuta comprobaciones automáticas (RAISE EXCEPTION) para validar triggers y reglas de negocio.
-- `tests/run_tests.cmd` — Wrapper Windows para crear la BD, aplicar el DDL y ejecutar las pruebas.
-- `README_tests.md` — Instrucciones y resultados esperados para las pruebas.
-- `conversacion_resumen.md` — Resumen de la sesión y cambios realizados.
+- DDL: `sql/modelo_logico.sql`
+- Diagrama ER: `diagrams/modelo_logico.puml` (PNG opcional)
+- Pruebas: `tests/test_data.sql` + `tests/run_tests.cmd`
+- Generador CSV: `tests/generate_csvs.py` (salida en `tests/data/run_YYYYMMDD_HHMMSS`)
+- Documentación: `docs/tablas_modelo_logico.md`, `docs/README_tests.md`, `docs/PRESENTATION.md`
 
-Cambios y supuestos principales
-- Se añadieron las entidades `compra` y `compra_producto` (lógica para compras a proveedores).
-- Para la recepción de una compra existen columnas de control: `recibida` (cuando se confirma la recepción) y `aplicada` (para prevenir dobles aplicaciones al inventario).
-- `inventario` sigue con PK compuesta `(id_tienda, id_producto)`.
-- Dialecto: PostgreSQL (se usan `SERIAL`, `timestamp`, `numeric`, y columnas `GENERATED` para subtotales). Si necesitas compatibilidad con PostgreSQL <12 puedo convertir `GENERATED` en triggers.
-- Se añadieron triggers: auditoría (`updated_at`), recálculo automático de `venta.monto_total`, recálculo de `compra.total_compra`, y aplicación de líneas de compra al inventario al confirmar recepción.
+## Requisitos
 
-Estructura de carpetas y archivos
----------------------------------
-Raíz:
-- `modelo_logico.sql` (DDL principal)
-- `modelo_logico.puml` (diagrama PlantUML)
-- `tablas_modelo_logico.md`, `conversacion_resumen.md`, `README.md`
-- `run_tests.cmd` (wrapper que llama a `tests\run_tests.cmd`)
+- PostgreSQL ≥ 12 (recomendado 16/18)
+- Cliente psql en PATH (o usar `tests/run_tests_local.cmd` que incluye ruta absoluta configurable)
+- Opcional (diagramas): Java + `plantuml.jar`
+- Opcional (datos): Python 3.10+ (el generador usa librerías estándar)
 
-Carpeta `tests`:
-- `tests\test_data.sql` — inserciones y SELECTs para validar triggers y facturación; contiene comprobaciones automáticas que fallan con excepción en caso de discrepancia.
-- `tests\run_tests.cmd` — script para Windows (cmd.exe) que crea la BD, aplica el DDL y ejecuta las pruebas.
+## Quickstart (Windows / cmd.exe)
 
-Cómo ejecutar los tests (Windows, cmd.exe)
-----------------------------------------
-1) Edita `tests\run_tests.cmd` y ajusta la variable `USER` con tu usuario de Postgres (ejemplo: `SET USER=postgres`).
-2) Desde la raíz del proyecto ejecuta el wrapper:
+1) Configurar usuario/BD en `tests/run_tests.cmd` y ejecutar:
 
-```cmd
-cd "c:\Users\vegas\OneDrive\Desktop\Model_logic"
-run_tests.cmd
+```bat
+rem Edita USER y DB al inicio del script según tu entorno
+rem SET USER=postgres
+rem SET DB=tienda_dev
+
+tests\run_tests.cmd
 ```
 
-O ejecuta directamente el script dentro de `tests`:
+¿Sin psql en PATH? Usa el wrapper local (edita ruta a `psql.exe` en el archivo si es necesario):
 
-```cmd
-cd "c:\Users\vegas\OneDrive\Desktop\Model_logic\tests"
-run_tests.cmd
+```bat
+tests\run_tests_local.cmd
 ```
 
-Notas sobre los tests
-- Los `DO $$ ... $$;` incluidos en `tests/test_data.sql` lanzan `RAISE EXCEPTION` si una comprobación falla; por tanto la ejecución retornará error (código distinto de 0) cuando algo no coincida.
-- Los checks cubren: recálculo de `venta.monto_total`, coincidencia de `facturacion.total`, recálculo de `compra.total_compra`, aplicación al `inventario` y idempotencia de la recepción.
+Para evitar el prompt de contraseña en una sesión (menos seguro):
 
-PlantUML y renderizado
-----------------------
-- Si PlantUML lanza errores al renderizar, abre `modelo_logico.puml` y verifica que no haya alias duplicados. En este proyecto la entidad alias de las líneas de compra fue renombrada a `CompraItem` internamente para evitar colisiones; la semántica sigue siendo la misma.
-- Recomendación: usa la extensión PlantUML en VS Code o la CLI de PlantUML (asegúrate de tener Java y Graphviz si usas la versión local).
+```bat
+set PGPASSWORD=TU_PASSWORD
+tests\run_tests_local.cmd
+set PGPASSWORD=
+```
 
-Compatibilidad y recomendaciones
---------------------------------
-- PostgreSQL >= 12 recomendado por el uso de columnas `GENERATED`.
-- Para entornos de producción considera:
-  - Añadir `created_by` / `updated_by` para auditoría por usuario.
-  - Registrar movimientos en una tabla `movimiento_inventario` si necesitas trazabilidad completa por lote/serie.
-  - Tests automatizados en CI: convertir los asserts a un script que devuelva salida estructurada (JSON) o usar una suite (pytest + psycopg2) para integración continua.
+El flujo aplica el DDL y ejecuta `tests/test_data.sql` (inserciones + asserts). Si una comprobación falla verás un `RAISE EXCEPTION` con detalle.
 
-Contacto y siguientes pasos
---------------------------
-- Si quieres que convierta las columnas `GENERATED` a triggers para compatibilidad con Postgres <12, lo hago.
-- ¿Quieres que suba un commit preparado y un mensaje sugerido para hacer push a GitHub? Puedo generar el mensaje de commit y el cuerpo del PR.
+## Generar datos CSV de ejemplo
 
-Gracias — si quieres que haga alguna otra actualización (limpieza del PUML, cambios de nombres, o añadir más tests/CI), dime y lo implemento.
+Crea datos realistas para 13 tablas en una subcarpeta con sello de tiempo.
+
+```bat
+python tests\generate_csvs.py
+```
+
+- Salida por defecto: `tests\data\run_YYYYMMDD_HHMMSS\`
+- Personalizar carpeta base:
+
+```bat
+python tests\generate_csvs.py --out-dir C:\ruta\a\mis\csvs
+```
+
+Cargar CSVs con `\copy` (ejemplo; reemplaza RUN_DIR por tu carpeta):
+
+```sql
+\copy tiendas(...)             FROM 'RUN_DIR/tiendas.csv' WITH CSV HEADER;
+\copy puesto_empleados(...)    FROM 'RUN_DIR/puesto_empleados.csv' WITH CSV HEADER;
+\copy empleados(...)           FROM 'RUN_DIR/empleados.csv' WITH CSV HEADER;
+\copy proveedores(...)         FROM 'RUN_DIR/proveedores.csv' WITH CSV HEADER;
+\copy categoria_productos(...) FROM 'RUN_DIR/categoria_productos.csv' WITH CSV HEADER;
+\copy productos(...)           FROM 'RUN_DIR/productos.csv' WITH CSV HEADER;
+\copy clientes(...)            FROM 'RUN_DIR/clientes.csv' WITH CSV HEADER;
+\copy venta(...)               FROM 'RUN_DIR/venta.csv' WITH CSV HEADER;
+\copy detalles_venta(...)      FROM 'RUN_DIR/detalles_venta.csv' WITH CSV HEADER;
+\copy inventario(...)          FROM 'RUN_DIR/inventario.csv' WITH CSV HEADER;
+\copy compra(...)              FROM 'RUN_DIR/compra.csv' WITH CSV HEADER;
+\copy compra_producto(...)     FROM 'RUN_DIR/compra_producto.csv' WITH CSV HEADER;
+\copy facturacion(...)         FROM 'RUN_DIR/facturacion.csv' WITH CSV HEADER;
+```
+
+Más detalles en `tests/data/Values.md`.
+
+## Diagrama ER (PlantUML)
+
+1) Descarga `plantuml.jar` y colócalo en `scripts/` (https://plantuml.com/download)
+2) Asegúrate de tener Java disponible (`java -version`)
+3) Genera la imagen PNG:
+
+```bat
+scripts\generate_diagram.cmd
+```
+
+La salida se guarda en `diagrams\modelo_logico.png`.
+
+## Estructura del repositorio
+
+```
+sql/           # DDL canónico (modelo_logico.sql)
+diagrams/     # Diagrama ER (puml) y artefactos exportados
+docs/         # Documentación (tablas, guía de pruebas, presentación)
+tests/        # Pruebas SQL, wrapper cmd y generador de CSVs
+  └─ data/    # Salida de CSVs (subcarpetas run_YYYYMMDD_HHMMSS)
+scripts/      # Utilidades (e.g., generate_diagram.cmd)
+out/          # Artefactos listos para presentación (PDF/PNG opcional)
+```
+
+## Documentación
+
+- Tablas y relaciones: [`docs/tablas_modelo_logico.md`](docs/tablas_modelo_logico.md)
+- Cómo ejecutar pruebas: [`docs/README_tests.md`](docs/README_tests.md)
+- Guía de presentación: [`docs/PRESENTATION.md`](docs/PRESENTATION.md)
+
+## Solución de problemas
+
+- “psql no encontrado”: añade `C:\Program Files\PostgreSQL\<ver>\bin` a PATH o usa `tests\run_tests_local.cmd` (edita la ruta interna).
+- PostgreSQL < 12: sustituye columnas `GENERATED` por triggers (puedo proporcionar variante del DDL).
+- Permisos al crear BD: ejecuta con un rol que tenga privilegios (`createdb`) o crea la BD manualmente y vuelve a lanzar el script.
+
+## Licencia
 
 
+---
 
