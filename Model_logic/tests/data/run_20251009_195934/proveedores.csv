@@ -1,0 +1,11 @@
+id_proveedor,nombre_empresa,contacto_nombre,contacto_email,contacto_telefono,created_at,updated_at
+1,Comercial 1,Diego Rodriguez,contacto1@proveedor1.com,555-2001,2024-03-08 19:59:34,2025-09-24 19:59:34
+2,Servicios 2,Jose Lopez,contacto2@proveedor2.com,555-2002,2025-05-10 19:59:34,2025-10-01 19:59:34
+3,Servicios 3,Ana Gomez,contacto3@proveedor3.com,555-2003,2024-05-17 19:59:34,2025-09-24 19:59:34
+4,Comercial 4,Diego Perez,contacto4@proveedor4.com,555-2004,2025-01-27 19:59:34,2025-10-05 19:59:34
+5,Importaciones 5,Carlos Gomez,contacto5@proveedor5.com,555-2005,2024-10-20 19:59:34,2025-10-06 19:59:34
+6,Importaciones 6,Marta Hernandez,contacto6@proveedor6.com,555-2006,2023-10-20 19:59:34,2025-09-20 19:59:34
+7,Importaciones 7,Maria Ramirez,contacto7@proveedor7.com,555-2007,2024-06-07 19:59:34,2025-09-25 19:59:34
+8,Servicios 8,Carlos Hernandez,contacto8@proveedor8.com,555-2008,2024-08-23 19:59:34,2025-09-21 19:59:34
+9,Importaciones 9,Juan Gomez,contacto9@proveedor9.com,555-2009,2024-12-01 19:59:34,2025-09-19 19:59:34
+10,Suministros 10,Carlos Gomez,contacto10@proveedor10.com,555-2010,2025-01-22 19:59:34,2025-10-02 19:59:34

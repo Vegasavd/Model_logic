@@ -1,0 +1,6 @@
+id_tienda,nombre,direccion,telefono,ciudad,created_at,updated_at
+1,Tienda 1,Calle 101 Avenida 1,555-1001,Ciudad A,2025-08-28 19:59:34,2025-09-16 19:59:34
+2,Tienda 2,Calle 102 Avenida 2,555-1002,Ciudad C,2025-05-07 19:59:34,2025-10-02 19:59:34
+3,Tienda 3,Calle 103 Avenida 3,555-1003,Ciudad B,2025-07-19 19:59:34,2025-09-18 19:59:34
+4,Tienda 4,Calle 104 Avenida 4,555-1004,Ciudad E,2025-07-27 19:59:34,2025-09-21 19:59:34
+5,Tienda 5,Calle 105 Avenida 5,555-1005,Ciudad D,2025-08-24 19:59:34,2025-10-09 19:59:34
